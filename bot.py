@@ -4,9 +4,8 @@ from telebot import types
 from duckduckgo_search import DDGS
 
 TOKEN = os.getenv("BOT_TOKEN", "")
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN, threaded=False)
 
-# የተጠቃሚዎች መረጃ፣ የፍለጋ ታሪክ እና ተወዳጆች (Favorites/History) ማከማቻ
 user_history = {}
 user_favorites = {}
 
@@ -27,7 +26,7 @@ def send_welcome(message):
     
     bot.reply_to(
         message, 
-        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና 资料 እና የፒዲኤፍ ዌብሳይት መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!",
+        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና እና የፒዲኤፍ ዌብሳይት መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!\n\n*(💡 ጠቃሚ ምክር: በየትኛውም ቻት ውስጥ ሆነው `@የቦትዎስም ቃሉን` በመጻፍ በቀጥታ መፈለግ ይችላሉ)*",
         reply_markup=markup
     )
 
@@ -38,9 +37,40 @@ def send_help(message):
         "1️⃣ **የምድብ አዝራሮች:** እንደ Pathology, Anatomy እና Physiology ያሉ የፈተና ኖቶችን በአንድ ክሊክ ለማግኘት።\n"
         "2️⃣ **PDF Files Filter:** ቀጥተኛ የፒዲኤፍ ዶክመንቶችን ብቻ ለማጣራት።\n"
         "3️⃣ **⭐ My Favorites:** ያስቀመጧቸውን ጠቃሚ ሊንኮች ለማየት።\n"
-        "4️⃣ **📜 Search History:** የፈለጓቸውን የቅርብ ጊዜ ርዕሶች ታሪክ ለማየት።"
+        "4️⃣ **Inline Search:** በየትኛውም ግሩፕ ውስጥ ሆነው `@BotUsername keyword` ብለው በመጻፍ በቀጥታ ውጤት ማጋራት ይችላሉ።"
     )
     bot.reply_to(message, help_text, parse_mode="Markdown")
+
+# 🌟 አዲሱ የ Inline Query ባህሪ (በየትኛውም ቻት ውስጥ ሆነው በቀጥታ ለመፈለግ)
+@bot.inline_handler(func=lambda query: True)
+def inline_search(query):
+    text = query.query.strip()
+    if not text:
+        text = "Medical model exams PDF"
+    
+    results = []
+    try:
+        with DDGS() as ddgs:
+            search_results = list(ddgs.text(text, max_results=5))
+            for i, item in enumerate(search_results):
+                title = item.get('title', 'ርዕስ የለውም')
+                href = item.get('href', '#')
+                snippet = item.get('body', 'ተጨማሪ መረጃ ለማግኘት ሊንኩን ይጫኑ።')
+                
+                results.append(
+                    types.InlineQueryResultArticle(
+                        id=str(i),
+                        title=title,
+                        description=snippet[:100],
+                        input_message_content=types.InputTextMessageContent(
+                            message_text=f"📌 **{title}**\n🔗 {href}"
+                        )
+                    )
+                )
+    except Exception as e:
+        print(f"Inline Search Error: {e}")
+        
+    bot.answer_inline_query(query.id, results, cache_time=1)
 
 @bot.message_handler(func=lambda message: True)
 def handle_messages(message):
@@ -67,10 +97,9 @@ def handle_messages(message):
             fav_text = "⭐ **የተቀመጡ ተወዳጅ ሊንኮችዎ:**\n\n" + "\n".join([f"🔗 {item}" for item in favorites])
             bot.reply_to(message, fav_text, disable_web_page_preview=True)
         else:
-            bot.reply_to(message, "⭐ እስካሁን ያስቀመጡት ተወዳጅ ሊንክ የለም። ሊንክ ለማስቀመጥ ከቀረቡት ሊንኮች ውስጥ ኮፒ አድርገው ይላኩልን።")
+            bot.reply_to(message, "⭐ እስካሁን ያስቀመጡት ተወዳጅ ሊንክ የለም።")
         return
 
-    # የምድብ እና የፒዲኤፍ ማጣሪያ አቋራጮች (Category & PDF Shortcuts)
     if "pathology" in text_lower:
         text = "Pathology exam papers filetype:pdf"
     elif "anatomy" in text_lower:
@@ -80,7 +109,6 @@ def handle_messages(message):
     elif "pdf" in text_lower or "📂 pdf files filter" in text_lower:
         text = "Medical model exams and lecture notes filetype:pdf"
 
-    # የፍለጋ ታሪክን ማስቀመጥ (Top 5)
     if chat_id not in user_history:
         user_history[chat_id] = []
     if text not in user_history[chat_id]:
@@ -110,9 +138,8 @@ def handle_messages(message):
             href = item.get('href', '#')
             response_text += f"📌 **{title}**\n🔗 {href}\n\n"
     
-    response_text += f"📌 **ጉግል እና ፒዲኤፍ ፍለጋ:**\n{google_url}\n\n📌 **ዩቲዩብ የቪዲዮ ሊንክ:**\n{yt_url}\n\n*(💡 ጠቃሚ ሊንክ ለማስቀመጥ ሊንኩን በመንካት ለቦቱ ይላኩ)*"
+    response_text += f"📌 **ጉግል እና ፒዲኤፍ ፍለጋ:**\n{google_url}\n\n📌 **ዩቲዩብ የቪዲዮ ሊንክ:**\n{yt_url}"
     
-    # ዩአርኤል ሲላክ ወደ Favorites እንዲገባ ማድረግ የሚችል ቀላል ማጣሪያ
     if "http://" in text_lower or "https://" in text_lower:
         if chat_id not in user_favorites:
             user_favorites[chat_id] = []
