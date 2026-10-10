@@ -1,2 +1,2 @@
-pyTelegramBotAPI
-duckduckgo-search
+pyTelegramBotAPI==4.14.0
+duckduckgo_search==5.3.1
