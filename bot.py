@@ -4,7 +4,7 @@ from telebot import types
 from duckduckgo_search import DDGS
 
 TOKEN = os.getenv("BOT_TOKEN", "")
-bot = telebot.TeleBot(TOKEN, threaded=False)
+bot = telebot.TeleBot(TOKEN)
 
 user_history = {}
 user_favorites = {}
@@ -26,7 +26,7 @@ def send_welcome(message):
     
     bot.reply_to(
         message, 
-        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና እና የፒዲኤፍ ዌብሳይት መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!\n\n*(💡 ጠቃሚ ምክር: በየትኛውም ቻት ውስጥ ሆነው `@የቦትዎስም ቃሉን` በመጻፍ በቀጥታ መፈለግ ይችላሉ)*",
+        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና እና የፒዲኤፍ ዌብሳይት መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!",
         reply_markup=markup
     )
 
@@ -37,11 +37,10 @@ def send_help(message):
         "1️⃣ **የምድብ አዝራሮች:** እንደ Pathology, Anatomy እና Physiology ያሉ የፈተና ኖቶችን በአንድ ክሊክ ለማግኘት።\n"
         "2️⃣ **PDF Files Filter:** ቀጥተኛ የፒዲኤፍ ዶክመንቶችን ብቻ ለማጣራት።\n"
         "3️⃣ **⭐ My Favorites:** ያስቀመጧቸውን ጠቃሚ ሊንኮች ለማየት።\n"
-        "4️⃣ **Inline Search:** በየትኛውም ግሩፕ ውስጥ ሆነው `@BotUsername keyword` ብለው በመጻፍ በቀጥታ ውጤት ማጋራት ይችላሉ።"
+        "4️⃣ **Inline Search:** በየትኛውም ግሩፕ ውስጥ ሆነው `@dersolignbot keyword` ብለው በመጻፍ በቀጥታ ውጤት ማጋራት ይችላሉ።"
     )
     bot.reply_to(message, help_text, parse_mode="Markdown")
 
-# 🌟 አዲሱ የ Inline Query ባህሪ (በየትኛውም ቻት ውስጥ ሆነው በቀጥታ ለመፈለግ)
 @bot.inline_handler(func=lambda query: True)
 def inline_search(query):
     text = query.query.strip()
