@@ -6,28 +6,28 @@ from duckduckgo_search import DDGS
 TOKEN = os.getenv("BOT_TOKEN", "")
 bot = telebot.TeleBot(TOKEN)
 
-# የተጠቃሚዎች መረጃ እና የፍለጋ ታሪክ ማከማቻ (History)
+# የተጠቃሚዎች መረጃ፣ የፍለጋ ታሪክ እና ተወዳጆች (Favorites/History) ማከማቻ
 user_history = {}
-user_lang = {}
+user_favorites = {}
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_name = message.from_user.first_name
     
-    # ዋና ዋና የምድብ አዝራሮች (Category Buttons)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
         types.KeyboardButton("🔬 Pathology Exams"),
         types.KeyboardButton("🦴 Anatomy Notes"),
         types.KeyboardButton("🧠 Physiology PDFs"),
-        types.KeyboardButton("📚 General Search"),
+        types.KeyboardButton("📂 PDF Files Filter"),
+        types.KeyboardButton("⭐ My Favorites"),
         types.KeyboardButton("📜 Search History"),
         types.KeyboardButton("❓ Help / እገዛ")
     )
     
     bot.reply_to(
         message, 
-        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና 资料 እና የዌብሳይት ሊንክ መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!",
+        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና 资料 እና የፒዲኤፍ ዌብሳይት መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!",
         reply_markup=markup
     )
 
@@ -35,9 +35,10 @@ def send_welcome(message):
 def send_help(message):
     help_text = (
         "🤖 **የቦቱ አጠቃቀም መመሪያ:**\n\n"
-        "1️⃣ **የምድብ አዝራሮች:** እንደ Pathology, Anatomy እና Physiology ያሉ ፈጣን ርዕሶችን በአዝራር ይምረጡ።\n"
-        "2️⃣ **የፍለጋ ታሪክ (History):** የፈለጓቸውን ርዕሶች ለማየት '📜 Search History' የሚለውን ይጫኑ።\n"
-        "3️⃣ **ቀጥተኛ ፍለጋ:** ማንኛውንም የፈተና ቃል በቀጥታ በመጻፍ የጉግል እና የዩቲዩብ ሊንኮችን ያግኙ።\n"
+        "1️⃣ **የምድብ አዝራሮች:** እንደ Pathology, Anatomy እና Physiology ያሉ የፈተና ኖቶችን በአንድ ክሊክ ለማግኘት።\n"
+        "2️⃣ **PDF Files Filter:** ቀጥተኛ የፒዲኤፍ ዶክመንቶችን ብቻ ለማጣራት።\n"
+        "3️⃣ **⭐ My Favorites:** ያስቀመጧቸውን ጠቃሚ ሊንኮች ለማየት።\n"
+        "4️⃣ **📜 Search History:** የፈለጓቸውን የቅርብ ጊዜ ርዕሶች ታሪክ ለማየት።"
     )
     bot.reply_to(message, help_text, parse_mode="Markdown")
 
@@ -60,15 +61,26 @@ def handle_messages(message):
             bot.reply_to(message, "📜 እስካሁን የፈለጉት የተመዘገበ ታሪክ የለም።")
         return
 
-    # የምድብ አቋራጮች (Category Shortcuts)
-    if "pathology" in text_lower:
-        text = "Pathology exam papers and model questions PDF"
-    elif "anatomy" in text_lower:
-        text = "Human anatomy upper limb and clinical anatomy notes"
-    elif "physiology" in text_lower:
-        text = "Medical physiology exam questions and summaries"
+    if text_lower == "⭐ my favorites":
+        favorites = user_favorites.get(chat_id, [])
+        if favorites:
+            fav_text = "⭐ **የተቀመጡ ተወዳጅ ሊንኮችዎ:**\n\n" + "\n".join([f"🔗 {item}" for item in favorites])
+            bot.reply_to(message, fav_text, disable_web_page_preview=True)
+        else:
+            bot.reply_to(message, "⭐ እስካሁን ያስቀመጡት ተወዳጅ ሊንክ የለም። ሊንክ ለማስቀመጥ ከቀረቡት ሊንኮች ውስጥ ኮፒ አድርገው ይላኩልን።")
+        return
 
-    # የፍለጋ ታሪክን ማስቀመጥ (최신 5 queries)
+    # የምድብ እና የፒዲኤፍ ማጣሪያ አቋራጮች (Category & PDF Shortcuts)
+    if "pathology" in text_lower:
+        text = "Pathology exam papers filetype:pdf"
+    elif "anatomy" in text_lower:
+        text = "Human anatomy notes filetype:pdf"
+    elif "physiology" in text_lower:
+        text = "Medical physiology exam questions filetype:pdf"
+    elif "pdf" in text_lower or "📂 pdf files filter" in text_lower:
+        text = "Medical model exams and lecture notes filetype:pdf"
+
+    # የፍለጋ ታሪክን ማስቀመጥ (Top 5)
     if chat_id not in user_history:
         user_history[chat_id] = []
     if text not in user_history[chat_id]:
@@ -90,7 +102,7 @@ def handle_messages(message):
     google_url = f"https://www.google.com/search?q={text.replace(' ', '+')}"
     yt_url = f"https://www.youtube.com/results?search_query={text.replace(' ', '+')}"
     
-    response_text = f"🌐 **ለ '{text}' የተገኙ የፍለጋ ሊንኮች:**\n\n"
+    response_text = f"🌐 **ለ '{text}' የተገኙ የፍለጋ እና የፒዲኤፍ ሊንኮች:**\n\n"
     
     if results:
         for item in results:
@@ -98,8 +110,17 @@ def handle_messages(message):
             href = item.get('href', '#')
             response_text += f"📌 **{title}**\n🔗 {href}\n\n"
     
-    response_text += f"📌 **ጉግል ፍለጋ እና ፒዲኤፍ ሊንክ:**\n{google_url}\n\n📌 **ዩቲዩብ የቪዲዮ ሊንክ:**\n{yt_url}"
+    response_text += f"📌 **ጉግል እና ፒዲኤፍ ፍለጋ:**\n{google_url}\n\n📌 **ዩቲዩብ የቪዲዮ ሊንክ:**\n{yt_url}\n\n*(💡 ጠቃሚ ሊንክ ለማስቀመጥ ሊንኩን በመንካት ለቦቱ ይላኩ)*"
     
+    # ዩአርኤል ሲላክ ወደ Favorites እንዲገባ ማድረግ የሚችል ቀላል ማጣሪያ
+    if "http://" in text_lower or "https://" in text_lower:
+        if chat_id not in user_favorites:
+            user_favorites[chat_id] = []
+        if text not in user_favorites[chat_id]:
+            user_favorites[chat_id].append(text)
+        bot.reply_to(message, "⭐ ሊንኩ በተወዳጆችዎ (Favorites) ዝርዝር ውስጥ ተቀምጧል!")
+        return
+
     bot.send_message(message.chat.id, response_text, disable_web_page_preview=True)
 
 if __name__ == "__main__":
