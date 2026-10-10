@@ -1,1 +1,2 @@
 pyTelegramBotAPI
+duckduckgo-search
