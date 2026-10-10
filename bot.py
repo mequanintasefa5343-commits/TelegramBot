@@ -6,21 +6,28 @@ from duckduckgo_search import DDGS
 TOKEN = os.getenv("BOT_TOKEN", "")
 bot = telebot.TeleBot(TOKEN)
 
-# የተጠቃሚዎች የቋንቋ ምርጫ ማከማቻ (Default: English/Amharic mix)
+# የተጠቃሚዎች መረጃ እና የፍለጋ ታሪክ ማከማቻ (History)
+user_history = {}
 user_lang = {}
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_name = message.from_user.first_name
+    
+    # ዋና ዋና የምድብ አዝራሮች (Category Buttons)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
-        types.KeyboardButton("🔍 Search Exam/Web"),
-        types.KeyboardButton("❓ Help / እገዛ"),
-        types.KeyboardButton("🌐 Change Language (Amharic/English)")
+        types.KeyboardButton("🔬 Pathology Exams"),
+        types.KeyboardButton("🦴 Anatomy Notes"),
+        types.KeyboardButton("🧠 Physiology PDFs"),
+        types.KeyboardButton("📚 General Search"),
+        types.KeyboardButton("📜 Search History"),
+        types.KeyboardButton("❓ Help / እገዛ")
     )
+    
     bot.reply_to(
         message, 
-        f"ሰላም {user_name}! 🤖\nእኔ የትምህርት፣ የፈተና እና የዌብሳይት ሊንክ መፈለጊያ ቦት ነኝ። የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!",
+        f"ሰላም {user_name}! 🤖\nእኔ የህክምና ትምህርት፣ የፈተና 资料 እና የዌብሳይት ሊንክ መፈለጊያ የላቀ ቦት ነኝ። ከታች ካሉት ምድቦች አንዱን ይምረጡ ወይም የሚፈልጉትን ርዕስ በቀጥታ ይጻፉልኝ!",
         reply_markup=markup
     )
 
@@ -28,11 +35,9 @@ def send_welcome(message):
 def send_help(message):
     help_text = (
         "🤖 **የቦቱ አጠቃቀም መመሪያ:**\n\n"
-        "1️⃣ **ፍለጋ ለማድረግ:** ማንኛውንም የትምህርት ርዕስ፣ የፈተና ጥያቄ (Exam) ወይም ቃል በቀጥታ ይጻፉ።\n"
-        "2️⃣ **ሊንኮች:** ቦቱ የጉግል እና የዩቲዩብ ቀጥተኛ የፍለጋ ሊንኮችን ያዘጋጅልዎታል።\n"
-        "3️⃣ **ትዕዛዞች:**\n"
-        "   - /start - ቦቱን እንደገና ለመጀመር\n"
-        "   - /help - ይህንን የረዳት መመሪያ ለማግኘት"
+        "1️⃣ **የምድብ አዝራሮች:** እንደ Pathology, Anatomy እና Physiology ያሉ ፈጣን ርዕሶችን በአዝራር ይምረጡ።\n"
+        "2️⃣ **የፍለጋ ታሪክ (History):** የፈለጓቸውን ርዕሶች ለማየት '📜 Search History' የሚለውን ይጫኑ።\n"
+        "3️⃣ **ቀጥተኛ ፍለጋ:** ማንኛውንም የፈተና ቃል በቀጥታ በመጻፍ የጉግል እና የዩቲዩብ ሊንኮችን ያግኙ።\n"
     )
     bot.reply_to(message, help_text, parse_mode="Markdown")
 
@@ -40,32 +45,37 @@ def send_help(message):
 def handle_messages(message):
     text = message.text.strip()
     text_lower = text.lower()
+    chat_id = message.chat.id
     
     if text_lower in ["❓ help / እገዛ", "/help"]:
         send_help(message)
         return
         
-    if text_lower in ["🌐 change language (amharic/english)", "language"]:
-        chat_id = message.chat.id
-        current = user_lang.get(chat_id, "am")
-        if current == "am":
-            user_lang[chat_id] = "en"
-            bot.reply_to(message, "🌐 Language switched to English. Send any query to search!")
+    if text_lower == "📜 search history":
+        history = user_history.get(chat_id, [])
+        if history:
+            history_text = "📜 **የመጨረሻ የፍለጋ ታሪክዎ:**\n\n" + "\n".join([f"• {item}" for item in history])
+            bot.reply_to(message, history_text)
         else:
-            user_lang[chat_id] = "am"
-            bot.reply_to(message, "🌐 ቋንቋ ወደ አማርኛ ተቀይሯል። የሚፈልጉትን ርዕስ ይጻፉ!")
+            bot.reply_to(message, "📜 እስካሁን የፈለጉት የተመዘገበ ታሪክ የለም።")
         return
 
-    if "afila fikr" in text_lower:
-        custom_link = "https://www.youtube.com/results?search_query=afila+fikr"
-        bot.reply_to(message, f"📚 ለጠየቁት 'Afila Fikr' የተዘጋጀው ሊንክ ይህ ነው:\n\n🔗 {custom_link}")
-        return
-    
-    if "http://" in text_lower or "https://" in text_lower:
-        bot.reply_to(message, f"🔗 ሊንክዎ ደርሶኛል!\n\nተቀብዬዋለሁ: {text}")
-        return
-    
-    # የፍለጋ ሂደት
+    # የምድብ አቋራጮች (Category Shortcuts)
+    if "pathology" in text_lower:
+        text = "Pathology exam papers and model questions PDF"
+    elif "anatomy" in text_lower:
+        text = "Human anatomy upper limb and clinical anatomy notes"
+    elif "physiology" in text_lower:
+        text = "Medical physiology exam questions and summaries"
+
+    # የፍለጋ ታሪክን ማስቀመጥ (최신 5 queries)
+    if chat_id not in user_history:
+        user_history[chat_id] = []
+    if text not in user_history[chat_id]:
+        user_history[chat_id].insert(0, text)
+        if len(user_history[chat_id]) > 5:
+            user_history[chat_id].pop()
+
     bot.reply_to(message, f"🔍 '{text}' በመፈለግ ላይ...")
     
     results = []
@@ -88,7 +98,7 @@ def handle_messages(message):
             href = item.get('href', '#')
             response_text += f"📌 **{title}**\n🔗 {href}\n\n"
     
-    response_text += f"📌 **ጉግል ፍለጋ ሊንክ:**\n{google_url}\n\n📌 **ዩቲዩብ ፍለጋ ሊንክ:**\n{yt_url}"
+    response_text += f"📌 **ጉግል ፍለጋ እና ፒዲኤፍ ሊንክ:**\n{google_url}\n\n📌 **ዩቲዩብ የቪዲዮ ሊንክ:**\n{yt_url}"
     
     bot.send_message(message.chat.id, response_text, disable_web_page_preview=True)
 
