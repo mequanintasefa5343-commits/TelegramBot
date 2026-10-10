@@ -26,32 +26,31 @@ def handle_messages(message):
     else:
         bot.reply_to(message, f"🔍 '{text}' በመፈለግ ላይ...")
         
+        results = []
         try:
-            results = []
-            # DuckDuckGo ፍለጋ በደህና ሁኔታ ማከናወን
             with DDGS() as ddgs:
-                search_results = ddgs.text(text, max_results=3)
+                # ፍለጋውን በደህና ሁኔታ ለማከናወን
+                search_results = list(ddgs.text(text, max_results=3))
                 if search_results:
-                    for r in search_results:
-                        results.append(r)
-            
-            if results:
-                response_text = f"🌐 **ለ '{text}' የተገኙ የዌብ እና የፈተና ሊንኮች:**\n\n"
-                for item in results:
-                    title = item.get('title', 'ርዕስ የለውም')
-                    href = item.get('href', '#')
-                    response_text += f"📌 **{title}**\n🔗 {href}\n\n"
-            else:
-                # ዌብ ውጤት ካልተገኘ Google እና YouTube ፍለጋዎችን በአማራጭነት ማቅረብ
-                google_url = f"https://www.google.com/search?q={text.replace(' ', '+')}"
-                yt_url = f"https://www.youtube.com/results?search_query={text.replace(' ', '+')}"
-                response_text = f"🔗 **የፍለጋ ሊንኮች:**\n\n📌 **ጉግል ፍለጋ:**\n{google_url}\n\n📌 **ዩቲዩብ ፍለጋ:**\n{yt_url}"
-                
-            bot.send_message(message.chat.id, response_text, disable_web_page_preview=True)
-            
+                    results = search_results
         except Exception as e:
-            yt_url = f"https://www.youtube.com/results?search_query={text.replace(' ', '+')}"
-            bot.reply_to(message, f"🔗 **የዩቲዩብ ፍለጋ ሊንክ:**\n{yt_url}")
+            print(f"Search Error: {e}")
+            
+        # ዌብ ውጤት ካገኘ ወይም ካላገኘ ሁልጊዜ አስተማማኝ የጉግል እና የዩቲዩብ ሊንኮችን አብሮ ማሳየት
+        google_url = f"https://www.google.com/search?q={text.replace(' ', '+')}"
+        yt_url = f"https://www.youtube.com/results?search_query={text.replace(' ', '+')}"
+        
+        response_text = f"🌐 **ለ '{text}' የተገኙ የፍለጋ ሊንኮች:**\n\n"
+        
+        if results:
+            for item in results:
+                title = item.get('title', 'ርዕስ የለውም')
+                href = item.get('href', '#')
+                response_text += f"📌 **{title}**\n🔗 {href}\n\n"
+        
+        response_text += f"📌 **ጉግል ፍለጋ ሊንክ:**\n{google_url}\n\n📌 **ዩቲዩብ ፍለጋ ሊንክ:**\n{yt_url}"
+        
+        bot.send_message(message.chat.id, response_text, disable_web_page_preview=True)
 
 if __name__ == "__main__":
     bot.infinity_polling()
