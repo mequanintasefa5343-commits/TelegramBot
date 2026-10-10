@@ -28,10 +28,12 @@ def handle_messages(message):
         
         try:
             results = []
-            # ትክክለኛውን የ duckduckgo_search አጠቃቀም
+            # DuckDuckGo ፍለጋ በደህና ሁኔታ ማከናወን
             with DDGS() as ddgs:
-                for r in ddgs.text(text, max_results=3):
-                    results.append(r)
+                search_results = ddgs.text(text, max_results=3)
+                if search_results:
+                    for r in search_results:
+                        results.append(r)
             
             if results:
                 response_text = f"🌐 **ለ '{text}' የተገኙ የዌብ እና የፈተና ሊንኮች:**\n\n"
@@ -40,8 +42,10 @@ def handle_messages(message):
                     href = item.get('href', '#')
                     response_text += f"📌 **{title}**\n🔗 {href}\n\n"
             else:
+                # ዌብ ውጤት ካልተገኘ Google እና YouTube ፍለጋዎችን በአማራጭነት ማቅረብ
+                google_url = f"https://www.google.com/search?q={text.replace(' ', '+')}"
                 yt_url = f"https://www.youtube.com/results?search_query={text.replace(' ', '+')}"
-                response_text = f"🔗 **የዩቲዩብ ፍለጋ ሊንክ:**\n{yt_url}"
+                response_text = f"🔗 **የፍለጋ ሊንኮች:**\n\n📌 **ጉግል ፍለጋ:**\n{google_url}\n\n📌 **ዩቲዩብ ፍለጋ:**\n{yt_url}"
                 
             bot.send_message(message.chat.id, response_text, disable_web_page_preview=True)
             
