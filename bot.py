@@ -1,7 +1,26 @@
 import os
+from threading import Thread
+from flask import Flask
 import telebot
 from telebot import types
 from duckduckgo_search import DDGS
+
+# --- RENDER PORT BINDING FIX (KEEP-ALIVE) ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive and running 24/7!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_flask)
+    t.start()
+
+# ---------------------------------------------
 
 TOKEN = os.getenv("BOT_TOKEN", "")
 bot = telebot.TeleBot(TOKEN)
@@ -150,4 +169,7 @@ def handle_messages(message):
     bot.send_message(message.chat.id, response_text, disable_web_page_preview=True)
 
 if __name__ == "__main__":
-    bot.infinity_polling()
+    # ዌብ ሰርቨሩን በጀርባ ማስነሳት
+    keep_alive()
+    # የቦቱን ፖሊንግ ማስጀመር
+    bot.infinity_polling(none_stop=True)
